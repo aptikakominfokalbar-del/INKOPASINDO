@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'aptika.kominfokalbar@gmail.com' && request.auth.token.email_verified == true
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin'
+      );
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUserProfile(data) {
+      let requiredFields = ['uid', 'email', 'displayName', 'role', 'status', 'createdAt'];
+      return data.keys().hasAll(requiredFields)
+        && data.uid is string
+        && data.email is string
+        && data.displayName is string
+        && data.role in ['Admin', 'Cashier', 'View']
+        && data.status in ['Active', 'Inactive']
+        && (data.get('photoURL', '') is string || data.get('photoURL', null) == null)
+        && (data.createdAt is timestamp);
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['categoryId', 'date', 'itemName', 'quantity', 'totalPrice', 'paymentMethod'])
+        && data.categoryId is string && data.categoryId.size() <= 50
+        && data.itemName is string && data.itemName.size() <= 256
+        && (data.quantity is number || data.quantity is int)
+        && (data.totalPrice is number || data.totalPrice is int)
+        && data.paymentMethod in ['Cash', 'Transfer', 'Bon']
+        && (data.get('notes', '') is string)
+        && (data.date != null)
+        && (data.get('updatedAt', null) == null || data.updatedAt is timestamp); 
+    }
+
+    function isValidExpense(data) {
+      return data.keys().hasAll(['categoryId', 'date', 'itemName', 'amount'])
+        && data.categoryId is string && data.categoryId.size() <= 50
+        && data.itemName is string && data.itemName.size() <= 256
+        && (data.amount is number || data.amount is int)
+        && (data.get('notes', '') is string)
+        && (data.date != null)
+        && (data.get('updatedAt', null) == null || data.updatedAt is timestamp);
+    }
+
+    // --- Collection Rules ---
+
+    match /transactions/{transactionId} {
+      allow list: if isSignedIn(); // In production, filter by user ownership if applicable
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && isValidTransaction(incoming());
+      allow update: if isAdmin() && isValidTransaction(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && isValidExpense(incoming());
+      allow update: if isAdmin() && isValidExpense(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /presets/{presetId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || true; // allow all users to manage presets for now since it's just cashier menus
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUserProfile(incoming());
+      allow update: if isAdmin() && isValidUserProfile(incoming());
+    }
+  }
+}

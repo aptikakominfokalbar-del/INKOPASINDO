@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Store individual sales transactions for each unit.",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string", "description": "The ID of the unit (e.g., warteg, laundry)." },
+        "date": { "type": "string", "format": "date-time", "description": "Server timestamp of the transaction." },
+        "itemName": { "type": "string", "description": "Name of the menu or product sold." },
+        "quantity": { "type": "number", "description": "Number of items sold." },
+        "totalPrice": { "type": "number", "description": "Total price in IDR." },
+        "paymentMethod": { "type": "string", "enum": ["CASH", "TRANSFER", "BON"], "description": "Method used for payment." },
+        "notes": { "type": "string", "description": "Optional notes." },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "wartegDetails": {
+          "type": "object",
+          "properties": {
+            "sisaBon": { "type": "number" },
+            "sisaJualKembali": { "type": "number" },
+            "sisaLaukNotes": { "type": "string" },
+            "sisaLakuNotes": { "type": "string" }
+          }
+        }
+      },
+      "required": ["categoryId", "date", "itemName", "quantity", "totalPrice", "paymentMethod"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Store operational expenses for each unit.",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string", "description": "The ID of the unit associated with the expense." },
+        "date": { "type": "string", "format": "date-time", "description": "Server timestamp of the expense." },
+        "itemName": { "type": "string", "description": "Description of the expense." },
+        "amount": { "type": "number", "description": "Amount in IDR." },
+        "notes": { "type": "string", "description": "Optional notes." },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["categoryId", "date", "itemName", "amount"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile and role information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Cashier", "View"] },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "photoURL": { "type": "string" }
+      },
+      "required": ["uid", "email", "displayName", "role", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "transactions": {
+      "schema": "Transaction",
+      "description": "Collection of all sales across units."
+    },
+    "expenses": {
+      "schema": "Expense",
+      "description": "Collection of all expenses across units."
+    },
+    "users": {
+      "schema": "UserProfile",
+      "description": "Collection of user profiles and authentication data."
+    }
+  }
+}
